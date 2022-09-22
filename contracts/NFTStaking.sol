@@ -3,7 +3,9 @@
 pragma solidity ^0.8.9;
 
 import "./SKDRewards.sol";
+//allow you to do transferFrom, safeTransferFrom, move nfts from contracts to other contracts etc
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+//gives tools to add tokenIds, list how many nfts are sold, get totalSupply etc
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 
 contract NFTStaking is Ownable, IERC721Receiver {

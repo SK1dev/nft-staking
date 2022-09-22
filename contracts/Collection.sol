@@ -1,96 +1,129 @@
 // SPDX-License-Identifier: MIT LICENSE
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+//accept any ERC20 token including our own token
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 
-pragma solidity ^0.8.9;
-
+pragma solidity ^0.8.0;
+//ERC721 contract where we are accepting payment to mint nft's with different cryptocurrencies including our own token.
+//can also update the price on the collection.
+//this contract can also hold your funds so when you pay with crypto the crypto is stored in this contract
 contract Collection is ERC721Enumerable, Ownable {
+
+    struct TokenInfo {
+        //we need to call the interface every time we are going to interact with that particular token as pay out
+        IERC20 paytoken;
+        uint256 costvalue;
+    }
+
+    TokenInfo[] public AllowedCrypto;
+    
     using Strings for uint256;
     string public baseURI;
     string public baseExtension = ".json";
-    uint256 public maxSupply = 100000;
+    uint256 public maxSupply = 1000;
     uint256 public maxMintAmount = 5;
     bool public paused = false;
 
     constructor() ERC721("SKDev NFT Collection", "SKD") {}
 
-    function _baseURI() internal view virtual override returns (string memory) {
-        return "ipfs://QmYB5uWZqfunBq7yWnamTqoXWBAHiQoirNLmuxMzDThHhi/";
+    function addCurrency(
+        //paytoken is where we store the ERC20 token smart contract
+        IERC20 _paytoken,
+        uint256 _costvalue
+    ) public onlyOwner {
+        AllowedCrypto.push(
+            TokenInfo({
+                paytoken: _paytoken,
+                costvalue: _costvalue
+            })
+        );
     }
 
-    function mint(address _to, uint256 _mintAmount) public payable {
+    function _baseURI() internal view virtual override returns (string memory) {
+    return "ipfs://EE5MmqVp5MmqVp7ZRMBBizicVh9ficVh9fjUofWicVh9f/";
+
+    }
+    
+    function mint(address _to, uint256 _mintAmount, uint256 _pid) public payable {
+        //we ask for pid(pull id) from user wallet so we know which currency they want to use from the pid we've created
+        TokenInfo storage tokens = AllowedCrypto[_pid];
+        IERC20 paytoken;
+        paytoken = tokens.paytoken;
+        uint256 cost;
+        cost = tokens.costvalue;
         uint256 supply = totalSupply();
         require(!paused);
         require(_mintAmount > 0);
         require(_mintAmount <= maxMintAmount);
         require(supply + _mintAmount <= maxSupply);
-
-        for (uint256 i = 1; i <= _mintAmount; i++) {
-            _safeMint(_to, supply + i);
+            
+            if (msg.sender != owner()) {
+            require(msg.value == cost * _mintAmount, "Not enough balance to complete transaction.");
+            }
+            
+            for (uint256 i = 1; i <= _mintAmount; i++) {
+                //msg.sender (my wallet) requesting the mint function
+                paytoken.transferFrom(msg.sender, address(this), cost);
+                _safeMint(_to, supply + i);
+            }
         }
-    }
 
-    function walletOfOwner(address _owner)
+        function walletOfOwner(address _owner)
         public
         view
         returns (uint256[] memory)
-    {
-        uint256 ownerTokenCount = balanceOf(_owner);
-        uint256[] memory tokenIds = new uint256[](ownerTokenCount);
-        for (uint256 i; i < ownerTokenCount; i++) {
-            tokenIds[i] = tokenOfOwnerByIndex(_owner, i);
+        {
+            uint256 ownerTokenCount = balanceOf(_owner);
+            uint256[] memory tokenIds = new uint256[](ownerTokenCount);
+            for (uint256 i; i < ownerTokenCount; i++) {
+                tokenIds[i] = tokenOfOwnerByIndex(_owner, i);
+            }
+            return tokenIds;
         }
-        return tokenIds;
-    }
-
-    function tokenURI(uint256 tokenId)
+    
+        
+        function tokenURI(uint256 tokenId)
         public
         view
         virtual
         override
-        returns (string memory)
-    {
-        require(
-            _exists(tokenId),
-            "ERC721Metadata: URI query for nonexistent token"
-        );
-
-        string memory currentBaseURI = _baseURI();
-        return
-            bytes(currentBaseURI).length > 0
-                ? string(
-                    abi.encodePacked(
-                        currentBaseURI,
-                        tokenId.toString(),
-                        baseExtension
-                    )
-                )
+        returns (string memory) {
+            require(
+                _exists(tokenId),
+                "ERC721Metadata: URI query for nonexistent token"
+                );
+                
+                string memory currentBaseURI = _baseURI();
+                return
+                bytes(currentBaseURI).length > 0 
+                ? string(abi.encodePacked(currentBaseURI, tokenId.toString(), baseExtension))
                 : "";
-    }
-
-    // only owner
-
-    function setmaxMintAmount(uint256 _newmaxMintAmount) public onlyOwner {
-        maxMintAmount = _newmaxMintAmount;
-    }
-
-    function setBaseURI(string memory _newBaseURI) public onlyOwner {
-        baseURI = _newBaseURI;
-    }
-
-    function setBaseExtension(string memory _newBaseExtension)
-        public
-        onlyOwner
-    {
-        baseExtension = _newBaseExtension;
-    }
-
-    function pause(bool _state) public onlyOwner {
-        paused = _state;
-    }
-
-    function withdraw() public payable onlyOwner {
-        require(payable(msg.sender).send(address(this).balance));
-    }
+        }
+        // only owner
+        
+        function setmaxMintAmount(uint256 _newmaxMintAmount) public onlyOwner() {
+            maxMintAmount = _newmaxMintAmount;
+        }
+        
+        function setBaseURI(string memory _newBaseURI) public onlyOwner() {
+            baseURI = _newBaseURI;
+        }
+        
+        function setBaseExtension(string memory _newBaseExtension) public onlyOwner() {
+            baseExtension = _newBaseExtension;
+        }
+        
+        function pause(bool _state) public onlyOwner() {
+            paused = _state;
+        }
+        //whoever deployed this collection in onlyOwner
+        function withdraw(uint256 _pid) public payable onlyOwner() {
+            TokenInfo storage tokens = AllowedCrypto[_pid];
+            IERC20 paytoken;
+            paytoken = tokens.paytoken;
+            //paytoken.transfer allows us to receive the funds that were transferred from the buyer to the contract to our wallet
+            paytoken.transfer(msg.sender, paytoken.balanceOf(address(this)));
+        }
 }
