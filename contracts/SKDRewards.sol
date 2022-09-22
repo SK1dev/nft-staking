@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT LICENSE
 
 pragma solidity ^0.8.4;
+
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -13,18 +14,12 @@ contract SKDRewards is ERC20, ERC20Burnable, Ownable {
   mapping(address => uint256) private _balances;
   mapping(address => bool) controllers;
 
-  //total amount of tokens in circulation  
   uint256 private _totalSupply;
-  //determine if the maximum supply has been minted
   uint256 private MAXSUP;
-  //max supply of tokens - 2 million
   uint256 constant MAXIMUMSUPPLY=1000000*10**18;
 
   constructor() ERC20("SKDRewards", "SKDR") { 
-    //to give some collateral value to this token mint 1 million tokens and send to my address - 
-    //1 million left to send to NFT stakers
       _mint(msg.sender, 1000000 * 10 ** 18);
-
   }
 
   function mint(address to, uint256 amount) external {
@@ -32,7 +27,6 @@ contract SKDRewards is ERC20, ERC20Burnable, Ownable {
     require((MAXSUP+amount)<=MAXIMUMSUPPLY,"Maximum supply has been reached");
     _totalSupply = _totalSupply.add(amount);
     MAXSUP=MAXSUP.add(amount);
-    //track how many tokens have been issued to each wallet
     _balances[to] = _balances[to].add(amount);
     _mint(to, amount);
   }
@@ -61,5 +55,4 @@ contract SKDRewards is ERC20, ERC20Burnable, Ownable {
   function maxSupply() public  pure returns (uint256) {
     return MAXIMUMSUPPLY;
   }
-
 }

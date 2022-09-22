@@ -1,18 +1,14 @@
 // SPDX-License-Identifier: MIT LICENSE
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-//accept any ERC20 token including our own token
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 
 pragma solidity ^0.8.0;
-//ERC721 contract where we are accepting payment to mint nft's with different cryptocurrencies including our own token.
-//can also update the price on the collection.
-//this contract can also hold your funds so when you pay with crypto the crypto is stored in this contract
+
 contract Collection is ERC721Enumerable, Ownable {
 
     struct TokenInfo {
-        //we need to call the interface every time we are going to interact with that particular token as pay out
         IERC20 paytoken;
         uint256 costvalue;
     }
@@ -29,7 +25,6 @@ contract Collection is ERC721Enumerable, Ownable {
     constructor() ERC721("SKDev NFT Collection", "SKD") {}
 
     function addCurrency(
-        //paytoken is where we store the ERC20 token smart contract
         IERC20 _paytoken,
         uint256 _costvalue
     ) public onlyOwner {
@@ -43,11 +38,9 @@ contract Collection is ERC721Enumerable, Ownable {
 
     function _baseURI() internal view virtual override returns (string memory) {
     return "ipfs://EE5MmqVp5MmqVp7ZRMBBizicVh9ficVh9fjUofWicVh9f/";
-
     }
     
     function mint(address _to, uint256 _mintAmount, uint256 _pid) public payable {
-        //we ask for pid(pull id) from user wallet so we know which currency they want to use from the pid we've created
         TokenInfo storage tokens = AllowedCrypto[_pid];
         IERC20 paytoken;
         paytoken = tokens.paytoken;
@@ -64,7 +57,6 @@ contract Collection is ERC721Enumerable, Ownable {
             }
             
             for (uint256 i = 1; i <= _mintAmount; i++) {
-                //msg.sender (my wallet) requesting the mint function
                 paytoken.transferFrom(msg.sender, address(this), cost);
                 _safeMint(_to, supply + i);
             }
@@ -118,12 +110,11 @@ contract Collection is ERC721Enumerable, Ownable {
         function pause(bool _state) public onlyOwner() {
             paused = _state;
         }
-        //whoever deployed this collection in onlyOwner
+
         function withdraw(uint256 _pid) public payable onlyOwner() {
             TokenInfo storage tokens = AllowedCrypto[_pid];
             IERC20 paytoken;
             paytoken = tokens.paytoken;
-            //paytoken.transfer allows us to receive the funds that were transferred from the buyer to the contract to our wallet
             paytoken.transfer(msg.sender, paytoken.balanceOf(address(this)));
         }
 }
